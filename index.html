@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo: Classifique a Conta!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Melhora a experiência de arrastar em dispositivos móveis */
+        }
+        .drop-zone {
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .drop-zone.over {
+            background-color: #c7d2fe; /* indigo-200 */
+            transform: scale(1.05);
+            border-style: dashed;
+        }
+        .draggable-card {
+            touch-action: none;
+            user-select: none;
+            cursor: grab;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+        .draggable-card:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .feedback {
+            transition: opacity 0.5s, transform 0.5s;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto">
+        <!-- Cabeçalho e Pontuação -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-700">Jogo: Classifique a Conta!</h1>
+            <p class="text-slate-500 mt-2 text-lg">Arraste a conta para o grupo correto.</p>
+            <div id="score" class="mt-4 text-xl font-bold bg-white p-3 rounded-lg shadow-md inline-block">
+                Pontuação: <span id="scoreValue" class="text-green-600">0</span> | Tentativas: <span id="attemptsValue" class="text-red-600">0</span>
+            </div>
+        </header>
+
+        <!-- Área do Jogo -->
+        <main class="flex flex-col items-center">
+            <!-- Card Arrastável -->
+            <div id="draggableCard" draggable="true" class="draggable-card bg-white p-6 rounded-xl shadow-lg text-center mb-8 w-80 h-32 flex items-center justify-center">
+                <h2 id="accountName" class="text-xl md:text-2xl font-bold text-slate-800"></h2>
+            </div>
+            
+            <!-- Zonas para Soltar -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
+                <div id="ativo" class="drop-zone bg-blue-100 border-2 border-blue-300 rounded-xl p-4 text-center h-32 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-blue-800">Ativo</h3>
+                </div>
+                <div id="passivo" class="drop-zone bg-red-100 border-2 border-red-300 rounded-xl p-4 text-center h-32 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-red-800">Passivo</h3>
+                </div>
+                <div id="patrimonio-liquido" class="drop-zone bg-purple-100 border-2 border-purple-300 rounded-xl p-4 text-center h-32 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-purple-800">Patrimônio Líquido</h3>
+                </div>
+                <div id="receita" class="drop-zone bg-green-100 border-2 border-green-300 rounded-xl p-4 text-center h-32 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-green-800">Receita</h3>
+                </div>
+                <div id="despesa-custo" class="drop-zone bg-yellow-100 border-2 border-yellow-400 rounded-xl p-4 text-center h-32 flex flex-col justify-center items-center col-span-2 sm:col-span-1 lg:col-span-1">
+                    <h3 class="text-xl font-bold text-yellow-800">Despesa / Custo</h3>
+                </div>
+            </div>
+
+            <!-- Feedback -->
+            <div id="feedback" class="feedback mt-6 text-center text-2xl font-bold opacity-0 transform scale-90 h-10"></div>
+        </main>
+    </div>
+
+    <script>
+        // Base de dados de contas COMPLETA, extraída do anexo do edital
+        const accounts = [
+            // ATIVO
+            { name: 'Caixa', group: 'ativo' },
+            { name: 'Bancos Conta Movimento', group: 'ativo' },
+            { name: 'Aplicações Financeiras de Liquidez Imediata', group: 'ativo' },
+            { name: 'Duplicatas a Receber', group: 'ativo' },
+            { name: '(-) Perdas Estimadas com Créditos de Liquidação Duvidosa', group: 'ativo' },
+            { name: 'Adiantamento a Empregados', group: 'ativo' },
+            { name: 'ICMS a Recuperar', group: 'ativo' },
+            { name: 'PIS a Recuperar', group: 'ativo' },
+            { name: 'COFINS a Recuperar', group: 'ativo' },
+            { name: 'IPI a Recuperar', group: 'ativo' },
+            { name: 'Mercadorias para Revenda', group: 'ativo' },
+            { name: 'Matéria-Prima', group: 'ativo' },
+            { name: 'Produtos em Elaboração', group: 'ativo' },
+            { name: 'Produtos Acabados', group: 'ativo' },
+            { name: 'Adiantamentos a Fornecedores', group: 'ativo' },
+            { name: '(-) Ajuste a Valor Presente (Estoque)', group: 'ativo' },
+            { name: 'Ativos Biológicos (Circulante)', group: 'ativo' },
+            { name: 'Prêmios de Seguros a Apropriar', group: 'ativo' },
+            { name: 'Aluguel Pago Antecipadamente', group: 'ativo' },
+            { name: 'Ativo Não Circulante Mantido para Venda', group: 'ativo' },
+            { name: 'Créditos com Partes Relacionadas (Longo Prazo)', group: 'ativo' },
+            { name: 'IRPJ Diferido (Ativo)', group: 'ativo' },
+            { name: 'CSLL Diferida (Ativo)', group: 'ativo' },
+            { name: 'Participações em Controladas', group: 'ativo' },
+            { name: 'Participações em Coligadas', group: 'ativo' },
+            { name: 'Propriedades para Investimento', group: 'ativo' },
+            { name: 'Terrenos', group: 'ativo' },
+            { name: 'Edificações', group: 'ativo' },
+            { name: 'Máquinas e Equipamentos', group: 'ativo' },
+            { name: 'Veículos', group: 'ativo' },
+            { name: 'Móveis e Utensílios', group: 'ativo' },
+            { name: '(-) Depreciação Acumulada', group: 'ativo' },
+            { name: '(-) Exaustão Acumulada', group: 'ativo' },
+            { name: 'Imobilizado em Andamento', group: 'ativo' },
+            { name: 'Patentes', group: 'ativo' },
+            { name: 'Software', group: 'ativo' },
+            { name: '(-) Amortização Acumulada', group: 'ativo' },
+            { name: 'Intangível em Desenvolvimento', group: 'ativo' },
+            { name: '(-) Perdas Estimadas para Redução ao Valor Recuperável', group: 'ativo' },
+            
+            // PASSIVO
+            { name: 'Fornecedores Nacionais', group: 'passivo' },
+            { name: 'Fornecedores Estrangeiros', group: 'passivo' },
+            { name: 'Salários a Pagar', group: 'passivo' },
+            { name: 'Férias a Pagar', group: 'passivo' },
+            { name: '13º Salários a Pagar', group: 'passivo' },
+            { name: 'INSS a Recolher', group: 'passivo' },
+            { name: 'FGTS a Recolher', group: 'passivo' },
+            { name: 'ICMS a Recolher', group: 'passivo' },
+            { name: 'PIS a Recolher', group: 'passivo' },
+            { name: 'COFINS a Recolher', group: 'passivo' },
+            { name: 'IRPJ a Recolher', group: 'passivo' },
+            { name: 'CSLL a Recolher', group: 'passivo' },
+            { name: 'Empréstimos Bancários (Curto Prazo)', group: 'passivo' },
+            { name: 'Financiamentos a Pagar (Curto Prazo)', group: 'passivo' },
+            { name: 'Duplicatas Descontadas', group: 'passivo' },
+            { name: '(-) Encargos Financeiros a Transcorrer', group: 'passivo' },
+            { name: 'Debêntures a Pagar', group: 'passivo' },
+            { name: 'Adiantamento de Clientes', group: 'passivo' },
+            { name: 'Dividendos a Pagar', group: 'passivo' },
+            { name: 'Provisões Fiscais, Previdenciárias e Trabalhistas', group: 'passivo' },
+            { name: 'Provisão para Garantias', group: 'passivo' },
+            { name: 'IRPJ Diferido (Passivo)', group: 'passivo' },
+            { name: 'CSLL Diferida (Passivo)', group: 'passivo' },
+
+            // PATRIMÔNIO LÍQUIDO
+            { name: 'Capital Subscrito', group: 'patrimonio-liquido' },
+            { name: '(-) Capital a Integralizar', group: 'patrimonio-liquido' },
+            { name: 'Ágio na Emissão de Ações', group: 'patrimonio-liquido' },
+            { name: 'Reserva Legal', group: 'patrimonio-liquido' },
+            { name: 'Reserva Estatutária', group: 'patrimonio-liquido' },
+            { name: 'Reservas para Contingências', group: 'patrimonio-liquido' },
+            { name: 'Reservas de Lucros a Realizar', group: 'patrimonio-liquido' },
+            { name: 'Reservas de Incentivos Fiscais', group: 'patrimonio-liquido' },
+            { name: 'Lucros/Prejuízos Acumulados', group: 'patrimonio-liquido' },
+            { name: '(-) Ações em Tesouraria', group: 'patrimonio-liquido' },
+            { name: 'Ajustes de Avaliação Patrimonial', group: 'patrimonio-liquido' },
+
+            // RECEITA
+            { name: 'Receita Bruta de Vendas', group: 'receita' },
+            { name: 'Receita de Serviços', group: 'receita' },
+            { name: 'Receitas Financeiras', group: 'receita' },
+            { name: 'Variação Cambial Ativa', group: 'receita' },
+            { name: 'Resultado da Equivalência Patrimonial (Positivo)', group: 'receita' },
+            { name: 'Receita com Dividendos', group: 'receita' },
+            { name: 'Juros Recebidos de Clientes', group: 'receita' },
+            { name: 'Descontos Financeiros Obtidos', group: 'receita' },
+
+            // DESPESA / CUSTO
+            { name: '(-) PIS sobre Faturamento', group: 'despesa-custo' },
+            { name: '(-) COFINS sobre Faturamento', group: 'despesa-custo' },
+            { name: '(-) ICMS sobre Vendas', group: 'despesa-custo' },
+            { name: '(-) Vendas Canceladas', group: 'despesa-custo' },
+            { name: '(-) Abatimentos sobre Vendas', group: 'despesa-custo' },
+            { name: 'Custo das Mercadorias Vendidas (CMV)', group: 'despesa-custo' },
+            { name: 'Custo dos Serviços Prestados (CSP)', group: 'despesa-custo' },
+            { name: 'Custo dos Produtos Vendidos (CPV)', group: 'despesa-custo' },
+            { name: 'Despesas com Pessoal (Salários)', group: 'despesa-custo' },
+            { name: 'Despesas com Comissões sobre Vendas', group: 'despesa-custo' },
+            { name: 'Despesas de Propaganda e Publicidade', group: 'despesa-custo' },
+            { name: 'Despesas com Aluguel', group: 'despesa-custo' },
+            { name: 'Despesa com Depreciação', group: 'despesa-custo' },
+            { name: 'Despesa com Amortização', group: 'despesa-custo' },
+            { name: 'Despesas com Seguros', group: 'despesa-custo' },
+            { name: 'Despesas de Energia Elétrica', group: 'despesa-custo' },
+            { name: 'Despesas Tributárias (IPTU, IOF)', group: 'despesa-custo' },
+            { name: 'Despesas com Provisões', group: 'despesa-custo' },
+            { name: 'Resultado na Venda de Imobilizado (Prejuízo)', group: 'despesa-custo' },
+            { name: 'Despesas Financeiras (Juros Pagos)', group: 'despesa-custo' },
+            { name: 'Variação Cambial Passiva', group: 'despesa-custo' },
+            { name: 'Descontos Concedidos a Clientes', group: 'despesa-custo' },
+            { name: 'Despesa com IRPJ Corrente', group: 'despesa-custo' },
+            { name: 'Despesa com CSLL Corrente', group: 'despesa-custo' },
+        ];
+
+        let currentAccount = null;
+        let score = 0;
+        let attempts = 0;
+
+        const draggableCard = document.getElementById('draggableCard');
+        const accountNameEl = document.getElementById('accountName');
+        const scoreValueEl = document.getElementById('scoreValue');
+        const attemptsValueEl = document.getElementById('attemptsValue');
+        const feedbackEl = document.getElementById('feedback');
+        const dropZones = document.querySelectorAll('.drop-zone');
+
+        const groupNames = {
+            'ativo': 'Ativo',
+            'passivo': 'Passivo',
+            'patrimonio-liquido': 'Patrimônio Líquido',
+            'receita': 'Receita',
+            'despesa-custo': 'Despesa / Custo'
+        };
+
+        function setNextAccount() {
+            const randomIndex = Math.floor(Math.random() * accounts.length);
+            currentAccount = accounts[randomIndex];
+            accountNameEl.textContent = currentAccount.name;
+        }
+
+        function updateScore() {
+            scoreValueEl.textContent = score;
+            attemptsValueEl.textContent = attempts;
+        }
+
+        function showFeedback(correct) {
+            feedbackEl.style.opacity = '1';
+            feedbackEl.style.transform = 'scale(1)';
+            if (correct) {
+                feedbackEl.innerHTML = 'Correto! ✅';
+                feedbackEl.className = 'feedback mt-6 text-center text-2xl font-bold text-green-600 opacity-100 transform scale-100 h-10';
+            } else {
+                const correctGroupName = groupNames[currentAccount.group];
+                feedbackEl.innerHTML = `Incorreto! ❌ A resposta certa é: <strong class="underline">${correctGroupName}</strong>`;
+                feedbackEl.className = 'feedback mt-6 text-center text-xl md:text-2xl font-bold text-red-600 opacity-100 transform scale-100 h-10';
+            }
+
+            // Aumenta o tempo para o usuário ler a resposta correta
+            setTimeout(() => {
+                feedbackEl.style.opacity = '0';
+                feedbackEl.style.transform = 'scale(0.9)';
+                setNextAccount();
+            }, 2500);
+        }
+
+        // --- Lógica para arrastar e soltar no Desktop ---
+        draggableCard.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', 'card'); // Necessário para o Firefox
+            setTimeout(() => {
+                draggableCard.style.opacity = '0.5';
+            }, 0);
+        });
+
+        draggableCard.addEventListener('dragend', () => {
+            draggableCard.style.opacity = '1';
+        });
+
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('over');
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('over');
+            });
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('over');
+                
+                attempts++;
+                const isCorrect = zone.id === currentAccount.group;
+                if (isCorrect) {
+                    score++;
+                }
+                updateScore();
+                showFeedback(isCorrect);
+            });
+        });
+        
+        // --- Lógica para arrastar e soltar em Dispositivos Móveis (Touch) ---
+        let initialX, initialY;
+        let isDragging = false;
+        
+        draggableCard.addEventListener('touchstart', (e) => {
+            initialX = e.touches[0].clientX;
+            initialY = e.touches[0].clientY;
+            isDragging = true;
+            draggableCard.style.transition = 'none'; // Remove a transição para um arrastar suave
+        });
+
+        draggableCard.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            let currentX = e.touches[0].clientX - initialX;
+            let currentY = e.touches[0].clientY - initialY;
+            draggableCard.style.transform = `translate(${currentX}px, ${currentY}px) scale(1.1)`;
+            
+            // Destaca a zona de soltar ao tocar
+            const touchElement = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            dropZones.forEach(zone => {
+                if(zone === touchElement?.closest('.drop-zone')) {
+                    zone.classList.add('over');
+                } else {
+                    zone.classList.remove('over');
+                }
+            });
+        });
+
+        draggableCard.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            // Esconde temporariamente o card para identificar o que está por baixo
+            draggableCard.style.visibility = 'hidden';
+            
+            const touchElement = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+            
+            // Torna o card visível novamente
+            draggableCard.style.visibility = 'visible';
+            
+            // Reseta a posição com uma transição suave
+            draggableCard.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
+            draggableCard.style.transform = 'translate(0, 0) scale(1)';
+
+            const dropZone = touchElement?.closest('.drop-zone');
+            
+            dropZones.forEach(zone => zone.classList.remove('over'));
+
+            if (dropZone) {
+                attempts++;
+                const isCorrect = dropZone.id === currentAccount.group;
+                if (isCorrect) {
+                    score++;
+                }
+                updateScore();
+                showFeedback(isCorrect);
+            }
+        });
+
+
+        // Inicia o jogo
+        document.addEventListener('DOMContentLoaded', () => {
+            setNextAccount();
+            updateScore();
+        });
+    </script>
+</body>
+</html>
