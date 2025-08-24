@@ -1,366 +1,254 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo: Classifique a Conta!</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            touch-action: none; /* Melhora a experiência de arrastar em dispositivos móveis */
-        }
-        .drop-zone {
-            transition: background-color 0.3s ease, transform 0.3s ease;
-        }
-        .drop-zone.over {
-            background-color: #c7d2fe; /* indigo-200 */
-            transform: scale(1.05);
-            border-style: dashed;
-        }
-        .draggable-card {
-            touch-action: none;
-            user-select: none;
-            cursor: grab;
+        body { font-family: 'Inter', sans-serif; }
+        .category-button {
             transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
         }
-        .draggable-card:active {
-            cursor: grabbing;
-            transform: scale(1.1);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-        .feedback {
-            transition: opacity 0.5s, transform 0.5s;
+        .category-button:hover:not(:disabled) {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 flex flex-col items-center justify-center min-h-screen p-4">
+<body class="bg-slate-100 dark:bg-gray-900 text-slate-800 dark:text-slate-200 flex flex-col items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-5xl mx-auto">
-        <!-- Cabeçalho e Pontuação -->
-        <header class="text-center mb-6">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-700">Jogo: Classifique a Conta!</h1>
-            <p class="text-slate-500 mt-2 text-lg">Arraste a conta para o grupo correto.</p>
-            <div id="score" class="mt-4 text-xl font-bold bg-white p-3 rounded-lg shadow-md inline-block">
-                Pontuação: <span id="scoreValue" class="text-green-600">0</span> | Tentativas: <span id="attemptsValue" class="text-red-600">0</span>
+    <div class="container bg-white dark:bg-slate-800 p-6 rounded-xl shadow-2xl w-full max-w-5xl relative">
+        <button id="themeToggle" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-transform hover:scale-110" aria-label="Alternar tema">🌙</button>
+
+        <header class="mb-6 flex items-center justify-center gap-4">
+            <img src="https://raw.githubusercontent.com/Halexandre1/PDF_PRO/main/HERBERT.jpg" alt="Logótipo" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-200 dark:border-indigo-800">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white text-left">Jogo: Classifique a Conta!</h1>
+                <p class="text-slate-500 dark:text-slate-400 text-sm text-left">Clique no grupo correto para a conta.</p>
             </div>
         </header>
+        
+        <div id="score" class="mb-4 text-center text-lg font-bold bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg shadow-inner flex justify-center items-center gap-x-6">
+            <span>Acertos: <span id="scoreValue" class="text-green-600 dark:text-green-400">0</span></span>
+            <span>Erros: <span id="errorsValue" class="text-red-600 dark:text-red-400">0</span></span>
+            <span>Tentativas: <span id="attemptsValue" class="text-blue-600 dark:text-blue-400">0</span></span>
+        </div>
+        
+        <div id="feedback" class="mb-4 text-center text-2xl font-bold opacity-0 transform scale-90 h-10 transition-all duration-500"></div>
 
-        <!-- Área do Jogo -->
         <main class="flex flex-col items-center">
-            <!-- Card Arrastável -->
-            <div id="draggableCard" draggable="true" class="draggable-card bg-white p-6 rounded-xl shadow-lg text-center mb-8 w-80 h-36 flex items-center justify-center">
+            <div id="accountCard" class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg text-center mb-8 w-80 h-36 flex items-center justify-center">
                 <div class="flex flex-col">
-                    <h2 id="accountName" class="text-xl md:text-2xl font-bold text-slate-800"></h2>
-                    <p id="accountHint" class="text-sm text-slate-500 mt-2"></p>
+                    <h2 id="accountName" class="text-xl md:text-2xl font-bold text-slate-800 dark:text-white"></h2>
+                    <p id="accountHint" class="text-sm text-slate-500 dark:text-slate-400 mt-2"></p>
                 </div>
             </div>
             
-            <!-- Zonas para Soltar -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
-                <div id="ativo" class="drop-zone bg-blue-100 border-2 border-blue-300 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
-                    <h3 class="text-xl font-bold text-blue-800">Ativo</h3>
-                    <p class="text-xs text-blue-700 mt-1 px-1">Bens e Direitos que geram benefícios para a empresa.</p>
-                </div>
-                <div id="passivo" class="drop-zone bg-red-100 border-2 border-red-300 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
-                    <h3 class="text-xl font-bold text-red-800">Passivo</h3>
-                    <p class="text-xs text-red-700 mt-1 px-1">Obrigações e dívidas da empresa com terceiros.</p>
-                </div>
-                <div id="patrimonio-liquido" class="drop-zone bg-purple-100 border-2 border-purple-300 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
-                    <h3 class="text-xl font-bold text-purple-800">Patrimônio Líquido</h3>
-                    <p class="text-xs text-purple-700 mt-1 px-1">Recursos dos sócios. A riqueza líquida da empresa.</p>
-                </div>
-                <div id="receita" class="drop-zone bg-green-100 border-2 border-green-300 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
-                    <h3 class="text-xl font-bold text-green-800">Receita</h3>
-                    <p class="text-xs text-green-700 mt-1 px-1">Ganhos que aumentam o Patrimônio Líquido.</p>
-                </div>
-                <div id="despesa-custo" class="drop-zone bg-yellow-100 border-2 border-yellow-400 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center col-span-2 sm:col-span-1 lg:col-span-1">
-                    <h3 class="text-xl font-bold text-yellow-800">Despesa / Custo</h3>
-                    <p class="text-xs text-yellow-700 mt-1 px-1">Gastos para gerar receita, que diminuem o Patrimônio Líquido.</p>
-                </div>
+            <div id="categoryButtons" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
+                <button id="ativo" class="category-button bg-blue-100 dark:bg-blue-900/40 border-2 border-blue-300 dark:border-blue-700 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-blue-800 dark:text-blue-300">Ativo</h3>
+                    <p class="text-xs text-blue-700 dark:text-blue-400 mt-1 px-1">Bens e Direitos.</p>
+                </button>
+                <button id="passivo" class="category-button bg-red-100 dark:bg-red-900/40 border-2 border-red-300 dark:border-red-700 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-red-800 dark:text-red-300">Passivo</h3>
+                    <p class="text-xs text-red-700 dark:text-red-400 mt-1 px-1">Obrigações e dívidas.</p>
+                </button>
+                <button id="patrimonio-liquido" class="category-button bg-purple-100 dark:bg-purple-900/40 border-2 border-purple-300 dark:border-purple-700 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-purple-800 dark:text-purple-300">Patrimônio Líquido</h3>
+                    <p class="text-xs text-purple-700 dark:text-purple-400 mt-1 px-1">Recursos dos sócios.</p>
+                </button>
+                <button id="receita" class="category-button bg-green-100 dark:bg-green-900/40 border-2 border-green-300 dark:border-green-700 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-green-800 dark:text-green-300">Receita</h3>
+                    <p class="text-xs text-green-700 dark:text-green-400 mt-1 px-1">Aumentam o PL.</p>
+                </button>
+                <button id="despesa-custo" class="category-button bg-yellow-100 dark:bg-yellow-900/40 border-2 border-yellow-400 dark:border-yellow-700 rounded-xl p-4 text-center h-36 flex flex-col justify-center items-center col-span-2 sm:col-span-1 lg:col-span-1">
+                    <h3 class="text-xl font-bold text-yellow-800 dark:text-yellow-300">Despesa / Custo</h3>
+                    <p class="text-xs text-yellow-700 dark:text-yellow-400 mt-1 px-1">Diminuem o PL.</p>
+                </button>
             </div>
 
-            <!-- Feedback -->
-            <div id="feedback" class="feedback mt-6 text-center text-2xl font-bold opacity-0 transform scale-90 h-10"></div>
+            <div class="text-center mt-6">
+                <button id="restartBtn" class="bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-5 rounded-lg text-sm transition-colors">Reiniciar Jogo</button>
+            </div>
         </main>
+        
+        <footer id="signature" class="text-center mt-6 text-sm text-slate-500 dark:text-slate-400"></footer>
     </div>
 
     <script>
-        // Base de dados de contas COMPLETA, com dicas
-        const accounts = [
-            // ATIVO
+    /**
+     * @file Jogo: Classifique a Conta! - Versão Corrigida
+     * @author HAlexandre
+     * @version 2.3.1
+     */
+
+    // --- Módulo do Jogo ---
+    const Game = {
+        score: 0,
+        errors: 0,
+        attempts: 0,
+        isAnswering: false,
+        currentAccount: null,
+        accounts: [
             { name: 'Caixa', group: 'ativo', hint: 'Dinheiro em espécie na empresa.' },
             { name: 'Bancos Conta Movimento', group: 'ativo', hint: 'Saldo disponível na conta corrente.' },
-            { name: 'Aplicações Financeiras de Liquidez Imediata', group: 'ativo', hint: 'Investimentos que viram dinheiro rapidamente.' },
             { name: 'Duplicatas a Receber', group: 'ativo', hint: 'Direito de receber por vendas a prazo.' },
-            { name: '(-) Perdas Estimadas com Créditos de Liquidação Duvidosa', group: 'ativo', hint: 'Valor estimado de clientes que talvez não paguem. (Conta redutora)' },
-            { name: 'Adiantamento a Empregados', group: 'ativo', hint: 'Dinheiro adiantado a funcionários.' },
-            { name: 'ICMS a Recuperar', group: 'ativo', hint: 'Crédito de imposto das compras de mercadorias.' },
-            { name: 'PIS a Recuperar', group: 'ativo', hint: 'Crédito de imposto das compras.' },
-            { name: 'COFINS a Recuperar', group: 'ativo', hint: 'Crédito de imposto das compras.' },
-            { name: 'IPI a Recuperar', group: 'ativo', hint: 'Crédito de imposto da compra de produtos industrializados.' },
-            { name: 'Mercadorias para Revenda', group: 'ativo', hint: 'Produtos comprados para serem vendidos.' },
-            { name: 'Matéria-Prima', group: 'ativo', hint: 'Itens usados para fabricar os produtos.' },
-            { name: 'Produtos em Elaboração', group: 'ativo', hint: 'Produtos que ainda estão na linha de produção.' },
-            { name: 'Produtos Acabados', group: 'ativo', hint: 'Produtos prontos para serem vendidos.' },
-            { name: 'Adiantamentos a Fornecedores', group: 'ativo', hint: 'Dinheiro pago ao fornecedor antes de receber a mercadoria.' },
-            { name: '(-) Ajuste a Valor Presente (Estoque)', group: 'ativo', hint: 'Ajuste em compras de estoque a prazo muito longo. (Conta redutora)' },
-            { name: 'Ativos Biológicos (Circulante)', group: 'ativo', hint: 'Animais ou plantas, como gado para corte ou soja para colheita.' },
-            { name: 'Prêmios de Seguros a Apropriar', group: 'ativo', hint: 'Seguro pago antecipadamente, que será usado nos próximos meses.' },
-            { name: 'Aluguel Pago Antecipadamente', group: 'ativo', hint: 'Aluguel de meses futuros que já foi pago.' },
-            { name: 'Ativo Não Circulante Mantido para Venda', group: 'ativo', hint: 'Um imobilizado (ex: um prédio) que a empresa decidiu vender.' },
-            { name: 'Créditos com Partes Relacionadas (Longo Prazo)', group: 'ativo', hint: 'Dinheiro a receber de empresas do mesmo grupo, com prazo longo.' },
-            { name: 'IRPJ Diferido (Ativo)', group: 'ativo', hint: 'Imposto que será economizado no futuro por causa de prejuízos atuais.' },
-            { name: 'CSLL Diferida (Ativo)', group: 'ativo', hint: 'Contribuição que será economizada no futuro.' },
-            { name: 'Participações em Controladas', group: 'ativo', hint: 'Investimento em empresas que são controladas.' },
-            { name: 'Participações em Coligadas', group: 'ativo', hint: 'Investimento com influência significativa em outra empresa.' },
-            { name: 'Propriedades para Investimento', group: 'ativo', hint: 'Imóvel mantido para alugar ou para valorizar, não para uso.' },
-            { name: 'Terrenos', group: 'ativo', hint: 'Propriedade de terra da empresa.' },
-            { name: 'Edificações', group: 'ativo', hint: 'Prédios, galpões e construções da empresa.' },
-            { name: 'Máquinas e Equipamentos', group: 'ativo', hint: 'Maquinário usado na produção ou operação.' },
-            { name: 'Veículos', group: 'ativo', hint: 'Carros, caminhões e outros veículos da empresa.' },
-            { name: 'Móveis e Utensílios', group: 'ativo', hint: 'Mesas, cadeiras, computadores, etc.' },
-            { name: '(-) Depreciação Acumulada', group: 'ativo', hint: 'Desgaste acumulado dos bens do imobilizado. (Conta redutora)' },
-            { name: '(-) Exaustão Acumulada', group: 'ativo', hint: 'Perda de valor de recursos minerais/florestais. (Conta redutora)' },
-            { name: 'Imobilizado em Andamento', group: 'ativo', hint: 'Construções ou montagens de imobilizado que ainda não terminaram.' },
-            { name: 'Patentes', group: 'ativo', hint: 'Direito de uso exclusivo de uma invenção.' },
-            { name: 'Software', group: 'ativo', hint: 'Programas de computador comprados ou desenvolvidos.' },
-            { name: '(-) Amortização Acumulada', group: 'ativo', hint: 'Perda de valor acumulada dos intangíveis. (Conta redutora)' },
-            { name: 'Intangível em Desenvolvimento', group: 'ativo', hint: 'Gastos com a criação de um novo produto/marca que ainda não está pronto.' },
-            { name: '(-) Perdas Estimadas para Redução ao Valor Recuperável', group: 'ativo', hint: 'Ajuste de impairment. (Conta redutora)' },
-            
-            // PASSIVO
             { name: 'Fornecedores Nacionais', group: 'passivo', hint: 'Dívidas com fornecedores do Brasil.' },
-            { name: 'Fornecedores Estrangeiros', group: 'passivo', hint: 'Dívidas com fornecedores de outros países.' },
             { name: 'Salários a Pagar', group: 'passivo', hint: 'Salários dos funcionários que ainda não foram pagos.' },
-            { name: 'Férias a Pagar', group: 'passivo', hint: 'Valor das férias dos funcionários que a empresa deve.' },
-            { name: '13º Salários a Pagar', group: 'passivo', hint: 'Valor do 13º que a empresa deve aos funcionários.' },
-            { name: 'INSS a Recolher', group: 'passivo', hint: 'Contribuição para a previdência a ser repassada.' },
-            { name: 'FGTS a Recolher', group: 'passivo', hint: 'Valor do Fundo de Garantia a ser depositado.' },
-            { name: 'ICMS a Recolher', group: 'passivo', hint: 'Imposto sobre vendas a ser pago ao governo.' },
-            { name: 'PIS a Recolher', group: 'passivo', hint: 'Tributo sobre o faturamento a ser pago.' },
-            { name: 'COFINS a Recolher', group: 'passivo', hint: 'Tributo sobre o faturamento a ser pago.' },
-            { name: 'IRPJ a Recolher', group: 'passivo', hint: 'Imposto de Renda da empresa a ser pago.' },
-            { name: 'CSLL a Recolher', group: 'passivo', hint: 'Contribuição Social sobre o Lucro a ser paga.' },
-            { name: 'Empréstimos Bancários (Curto Prazo)', group: 'passivo', hint: 'Dívidas com bancos com vencimento em até 1 ano.' },
-            { name: 'Financiamentos a Pagar (Curto Prazo)', group: 'passivo', hint: 'Financiamento de bens com vencimento em até 1 ano.' },
-            { name: 'Duplicatas Descontadas', group: 'passivo', hint: 'Adiantamento recebido do banco sobre duplicatas.' },
-            { name: '(-) Encargos Financeiros a Transcorrer', group: 'passivo', hint: 'Juros de empréstimos que ainda não venceram. (Conta redutora)' },
-            { name: 'Debêntures a Pagar', group: 'passivo', hint: 'Títulos de dívida emitidos pela empresa.' },
-            { name: 'Adiantamento de Clientes', group: 'passivo', hint: 'Dinheiro recebido antes de entregar o produto/serviço.' },
-            { name: 'Dividendos a Pagar', group: 'passivo', hint: 'Parte do lucro a ser distribuída aos sócios.' },
-            { name: 'Provisões Fiscais, Previdenciárias e Trabalhistas', group: 'passivo', hint: 'Estimativa de dívidas com processos ou questões fiscais.' },
-            { name: 'Provisão para Garantias', group: 'passivo', hint: 'Estimativa de gastos futuros com garantias de produtos.' },
-            { name: 'IRPJ Diferido (Passivo)', group: 'passivo', hint: 'Imposto que será pago no futuro por causa de lucros atuais.' },
-            { name: 'CSLL Diferida (Passivo)', group: 'passivo', hint: 'Contribuição que será paga no futuro.' },
-
-            // PATRIMÔNIO LÍQUIDO
             { name: 'Capital Subscrito', group: 'patrimonio-liquido', hint: 'Valor que os sócios se comprometeram a investir.' },
-            { name: '(-) Capital a Integralizar', group: 'patrimonio-liquido', hint: 'Parte do capital que os sócios ainda não depositaram. (Conta redutora)' },
-            { name: 'Ágio na Emissão de Ações', group: 'patrimonio-liquido', hint: 'Valor recebido a mais na venda de ações.' },
-            { name: 'Reserva Legal', group: 'patrimonio-liquido', hint: 'Parte do lucro guardada obrigatoriamente por lei (5%).' },
-            { name: 'Reserva Estatutária', group: 'patrimonio-liquido', hint: 'Parte do lucro guardada conforme o estatuto.' },
-            { name: 'Reservas para Contingências', group: 'patrimonio-liquido', hint: 'Parte do lucro guardada para cobrir perdas futuras.' },
-            { name: 'Reservas de Lucros a Realizar', group: 'patrimonio-liquido', hint: 'Lucro contábil ainda não recebido financeiramente.' },
-            { name: 'Reservas de Incentivos Fiscais', group: 'patrimonio-liquido', hint: 'Lucro de doações ou subvenções do governo.' },
-            { name: 'Lucros/Prejuízos Acumulados', group: 'patrimonio-liquido', hint: 'Resultado de exercícios anteriores não distribuído.' },
-            { name: '(-) Ações em Tesouraria', group: 'patrimonio-liquido', hint: 'Ações da própria empresa que ela comprou de volta. (Conta redutora)' },
-            { name: 'Ajustes de Avaliação Patrimonial', group: 'patrimonio-liquido', hint: 'Ajustes no valor de ativos e passivos a valor justo.' },
-
-            // RECEITA
-            { name: 'Receita Bruta de Vendas', group: 'receita', hint: 'Valor total das vendas de produtos, sem descontar impostos.' },
+            { name: 'Lucros Acumulados', group: 'patrimonio-liquido', hint: 'Resultado de exercícios anteriores.' },
             { name: 'Receita de Serviços', group: 'receita', hint: 'Valor total dos serviços prestados.' },
-            { name: 'Receitas Financeiras', group: 'receita', hint: 'Ganhos com juros de aplicações financeiras.' },
-            { name: 'Variação Cambial Ativa', group: 'receita', hint: 'Ganho com a variação da taxa de câmbio.' },
-            { name: 'Resultado da Equivalência Patrimonial (Positivo)', group: 'receita', hint: 'Ganho com o resultado de empresas investidas.' },
-            { name: 'Receita com Dividendos', group: 'receita', hint: 'Lucro recebido de investimentos em outras empresas.' },
-            { name: 'Juros Recebidos de Clientes', group: 'receita', hint: 'Juros cobrados por atraso no pagamento de clientes.' },
-            { name: 'Descontos Financeiros Obtidos', group: 'receita', hint: 'Descontos conseguidos por pagar uma dívida antecipadamente.' },
-
-            // DESPESA / CUSTO
-            { name: '(-) PIS sobre Faturamento', group: 'despesa-custo', hint: 'Imposto que deduz da receita bruta.' },
-            { name: '(-) COFINS sobre Faturamento', group: 'despesa-custo', hint: 'Imposto que deduz da receita bruta.' },
-            { name: '(-) ICMS sobre Vendas', group: 'despesa-custo', hint: 'Imposto que deduz da receita bruta.' },
-            { name: '(-) Vendas Canceladas', group: 'despesa-custo', hint: 'Valor das vendas que foram desfeitas.' },
-            { name: '(-) Abatimentos sobre Vendas', group: 'despesa-custo', hint: 'Descontos dados sobre o preço de venda por defeitos.' },
-            { name: 'Custo das Mercadorias Vendidas (CMV)', group: 'despesa-custo', hint: 'Custo das mercadorias que foram vendidas no período.' },
-            { name: 'Custo dos Serviços Prestados (CSP)', group: 'despesa-custo', hint: 'Custo para realizar os serviços vendidos.' },
-            { name: 'Custo dos Produtos Vendidos (CPV)', group: 'despesa-custo', hint: 'Custo de fabricação dos produtos que foram vendidos.' },
-            { name: 'Despesas com Pessoal (Salários)', group: 'despesa-custo', hint: 'Salários, férias, 13º da área administrativa ou de vendas.' },
-            { name: 'Despesas com Comissões sobre Vendas', group: 'despesa-custo', hint: 'Pagamento aos vendedores.' },
-            { name: 'Despesas de Propaganda e Publicidade', group: 'despesa-custo', hint: 'Gastos para divulgar a empresa e seus produtos.' },
+            { name: 'Receitas Financeiras', group: 'receita', hint: 'Ganhos com juros de aplicações.' },
+            { name: 'Custo das Mercadorias Vendidas (CMV)', group: 'despesa-custo', hint: 'Custo das mercadorias que foram vendidas.' },
             { name: 'Despesas com Aluguel', group: 'despesa-custo', hint: 'Aluguel do escritório ou da loja.' },
-            { name: 'Despesa com Depreciação', group: 'despesa-custo', hint: 'Desgaste mensal dos bens do imobilizado.' },
-            { name: 'Despesa com Amortização', group: 'despesa-custo', hint: 'Perda de valor mensal dos bens do intangível.' },
-            { name: 'Despesas com Seguros', group: 'despesa-custo', hint: 'Parcela mensal do seguro do prédio, veículos, etc.' },
-            { name: 'Despesas de Energia Elétrica', group: 'despesa-custo', hint: 'Conta de luz do escritório ou da loja.' },
-            { name: 'Despesas Tributárias (IPTU, IOF)', group: 'despesa-custo', hint: 'Impostos que não estão ligados diretamente à venda.' },
-            { name: 'Despesas com Provisões', group: 'despesa-custo', hint: 'Constituição de provisões para perdas futuras.' },
-            { name: 'Resultado na Venda de Imobilizado (Prejuízo)', group: 'despesa-custo', hint: 'Perda na venda de um bem do imobilizado.' },
-            { name: 'Despesas Financeiras (Juros Pagos)', group: 'despesa-custo', hint: 'Juros pagos em empréstimos e financiamentos.' },
-            { name: 'Variação Cambial Passiva', group: 'despesa-custo', hint: 'Perda com a variação da taxa de câmbio.' },
-            { name: 'Descontos Concedidos a Clientes', group: 'despesa-custo', hint: 'Descontos dados para clientes que pagam antecipadamente.' },
-            { name: 'Despesa com IRPJ Corrente', group: 'despesa-custo', hint: 'Imposto de Renda sobre o lucro do período.' },
-            { name: 'Despesa com CSLL Corrente', group: 'despesa-custo', hint: 'Contribuição Social sobre o lucro do período.' },
-        ];
+        ],
+        groupNames: {
+            'ativo': 'Ativo', 'passivo': 'Passivo', 'patrimonio-liquido': 'Patrimônio Líquido',
+            'receita': 'Receita', 'despesa-custo': 'Despesa / Custo'
+        },
 
-        let currentAccount = null;
-        let score = 0;
-        let attempts = 0;
+        start() {
+            this.score = 0;
+            this.errors = 0;
+            this.attempts = 0;
+            this.setNextAccount();
+            UI.updateScore(this.score, this.errors, this.attempts);
+        },
 
-        const draggableCard = document.getElementById('draggableCard');
-        const accountNameEl = document.getElementById('accountName');
-        const accountHintEl = document.getElementById('accountHint'); // Elemento para a dica
-        const scoreValueEl = document.getElementById('scoreValue');
-        const attemptsValueEl = document.getElementById('attemptsValue');
-        const feedbackEl = document.getElementById('feedback');
-        const dropZones = document.querySelectorAll('.drop-zone');
+        setNextAccount() {
+            const randomIndex = Math.floor(Math.random() * this.accounts.length);
+            this.currentAccount = this.accounts[randomIndex];
+            UI.updateCard(this.currentAccount);
+        },
 
-        const groupNames = {
-            'ativo': 'Ativo',
-            'passivo': 'Passivo',
-            'patrimonio-liquido': 'Patrimônio Líquido',
-            'receita': 'Receita',
-            'despesa-custo': 'Despesa / Custo'
-        };
+        checkAnswer(selectedGroupId) {
+            if (this.isAnswering) return;
+            this.isAnswering = true;
+            UI.setButtonsDisabled(true);
 
-        function setNextAccount() {
-            const randomIndex = Math.floor(Math.random() * accounts.length);
-            currentAccount = accounts[randomIndex];
-            accountNameEl.textContent = currentAccount.name;
-            accountHintEl.textContent = currentAccount.hint; // Atualiza a dica
-        }
-
-        function updateScore() {
-            scoreValueEl.textContent = score;
-            attemptsValueEl.textContent = attempts;
-        }
-
-        function showFeedback(correct) {
-            feedbackEl.style.opacity = '1';
-            feedbackEl.style.transform = 'scale(1)';
-            if (correct) {
-                feedbackEl.innerHTML = 'Correto! ✅';
-                feedbackEl.className = 'feedback mt-6 text-center text-2xl font-bold text-green-600 opacity-100 transform scale-100 h-10';
+            this.attempts++;
+            const isCorrect = selectedGroupId === this.currentAccount.group;
+            if (isCorrect) {
+                this.score++;
             } else {
-                const correctGroupName = groupNames[currentAccount.group];
-                feedbackEl.innerHTML = `Incorreto! ❌ A resposta certa é: <strong class="underline">${correctGroupName}</strong>`;
-                feedbackEl.className = 'feedback mt-6 text-center text-xl md:text-2xl font-bold text-red-600 opacity-100 transform scale-100 h-10';
+                this.errors++;
             }
-
-            // Aumenta o tempo para o usuário ler a resposta correta
+            UI.updateScore(this.score, this.errors, this.attempts);
+            UI.showFeedback(isCorrect, this.groupNames[this.currentAccount.group]);
+            
             setTimeout(() => {
-                feedbackEl.style.opacity = '0';
-                feedbackEl.style.transform = 'scale(0.9)';
-                setNextAccount();
-            }, 2500);
+                this.setNextAccount();
+                this.isAnswering = false;
+                UI.setButtonsDisabled(false);
+            }, 1800);
         }
+    };
 
-        // --- Lógica para arrastar e soltar no Desktop ---
-        draggableCard.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', 'card'); // Necessário para o Firefox
-            setTimeout(() => {
-                draggableCard.style.opacity = '0.5';
-            }, 0);
-        });
+    // --- Módulo de UI ---
+    const UI = {
+        dom: {
+            accountName: document.getElementById('accountName'),
+            accountHint: document.getElementById('accountHint'),
+            scoreValue: document.getElementById('scoreValue'),
+            errorsValue: document.getElementById('errorsValue'),
+            attemptsValue: document.getElementById('attemptsValue'),
+            feedback: document.getElementById('feedback'),
+            categoryButtons: document.getElementById('categoryButtons'),
+            themeToggle: document.getElementById('themeToggle'),
+            signature: document.getElementById('signature'),
+            restartBtn: document.getElementById('restartBtn'),
+        },
 
-        draggableCard.addEventListener('dragend', () => {
-            draggableCard.style.opacity = '1';
-        });
+        updateCard(account) {
+            this.dom.accountName.textContent = account.name;
+            this.dom.accountHint.textContent = account.hint;
+        },
 
-        dropZones.forEach(zone => {
-            zone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                zone.classList.add('over');
-            });
+        updateScore(score, errors, attempts) {
+            this.dom.scoreValue.textContent = score;
+            this.dom.errorsValue.textContent = errors;
+            this.dom.attemptsValue.textContent = attempts;
+        },
 
-            zone.addEventListener('dragleave', () => {
-                zone.classList.remove('over');
-            });
-
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                zone.classList.remove('over');
-                
-                attempts++;
-                const isCorrect = zone.id === currentAccount.group;
-                if (isCorrect) {
-                    score++;
-                }
-                updateScore();
-                showFeedback(isCorrect);
-            });
-        });
-        
-        // --- Lógica para arrastar e soltar em Dispositivos Móveis (Touch) ---
-        let initialX, initialY;
-        let isDragging = false;
-        
-        draggableCard.addEventListener('touchstart', (e) => {
-            initialX = e.touches[0].clientX;
-            initialY = e.touches[0].clientY;
-            isDragging = true;
-            draggableCard.style.transition = 'none'; // Remove a transição para um arrastar suave
-        });
-
-        draggableCard.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            let currentX = e.touches[0].clientX - initialX;
-            let currentY = e.touches[0].clientY - initialY;
-            draggableCard.style.transform = `translate(${currentX}px, ${currentY}px) scale(1.1)`;
-            
-            // Destaca a zona de soltar ao tocar
-            const touchElement = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
-            dropZones.forEach(zone => {
-                if(zone === touchElement?.closest('.drop-zone')) {
-                    zone.classList.add('over');
-                } else {
-                    zone.classList.remove('over');
-                }
-            });
-        });
-
-        draggableCard.addEventListener('touchend', (e) => {
-            if (!isDragging) return;
-            isDragging = false;
-            
-            // Esconde temporariamente o card para identificar o que está por baixo
-            draggableCard.style.visibility = 'hidden';
-            
-            const touchElement = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-            
-            // Torna o card visível novamente
-            draggableCard.style.visibility = 'visible';
-            
-            // Reseta a posição com uma transição suave
-            draggableCard.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease';
-            draggableCard.style.transform = 'translate(0, 0) scale(1)';
-
-            const dropZone = touchElement?.closest('.drop-zone');
-            
-            dropZones.forEach(zone => zone.classList.remove('over'));
-
-            if (dropZone) {
-                attempts++;
-                const isCorrect = zone.id === currentAccount.group;
-                if (isCorrect) {
-                    score++;
-                }
-                updateScore();
-                showFeedback(isCorrect);
+        showFeedback(isCorrect, correctGroupName) {
+            this.dom.feedback.style.opacity = '1';
+            this.dom.feedback.style.transform = 'scale(1)';
+            if (isCorrect) {
+                this.dom.feedback.innerHTML = 'Correto! ✅';
+                this.dom.feedback.className = 'feedback mb-4 text-center text-2xl font-bold text-green-600 dark:text-green-400 opacity-100 transform scale-100 h-10';
+            } else {
+                this.dom.feedback.innerHTML = `Incorreto! ❌ A resposta certa é: <strong class="underline">${correctGroupName}</strong>`;
+                this.dom.feedback.className = 'feedback mb-4 text-center text-xl md:text-2xl font-bold text-red-600 dark:text-red-400 opacity-100 transform scale-100 h-10';
             }
-        });
 
+            setTimeout(() => {
+                this.dom.feedback.style.opacity = '0';
+                this.dom.feedback.style.transform = 'scale(0.9)';
+            }, 1600);
+        },
+        
+        setButtonsDisabled(disabled) {
+            this.dom.categoryButtons.querySelectorAll('button').forEach(btn => {
+                btn.disabled = disabled;
+                btn.classList.toggle('opacity-50', disabled);
+                btn.classList.toggle('cursor-not-allowed', disabled);
+            });
+        },
 
-        // Inicia o jogo
-        document.addEventListener('DOMContentLoaded', () => {
-            setNextAccount();
-            updateScore();
-        });
+        loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                this.dom.themeToggle.textContent = '☀️';
+            } else {
+                this.dom.themeToggle.textContent = '🌙';
+            }
+        },
+
+        setSignature() {
+            this.dom.signature.innerHTML = `<p>Feito por HAlexandre © ${new Date().getFullYear()}</p>`;
+        }
+    };
+
+    // --- Módulo de Eventos ---
+    const Events = {
+        setup() {
+            const { categoryButtons, themeToggle, restartBtn } = UI.dom;
+
+            categoryButtons.addEventListener('click', (e) => {
+                const button = e.target.closest('.category-button');
+                if (button) {
+                    Game.checkAnswer(button.id);
+                }
+            });
+
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                const isDark = document.documentElement.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                themeToggle.textContent = isDark ? '☀️' : '🌙';
+            });
+            
+            restartBtn.addEventListener('click', () => Game.start());
+        }
+    };
+
+    // --- Inicialização ---
+    document.addEventListener('DOMContentLoaded', () => {
+        Game.start();
+        UI.loadTheme();
+        UI.setSignature();
+        Events.setup();
+    });
+
     </script>
 </body>
 </html>
